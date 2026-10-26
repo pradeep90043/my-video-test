@@ -349,7 +349,7 @@ jobs:
             (
               while true; do
                 sleep 10
-                L=$(tr '\\r' '\\n' < render.log 2>/dev/null | grep -o 'Rendered [0-9]*/[0-9]*' | tail -1)
+                L=$(tr '\r' '\n' < render.log 2>/dev/null | grep -o 'Rendered [0-9]*/[0-9]*' | tail -1)
                 [ -n "$L" ] || continue
                 D=${L#Rendered }; DONE=${D%/*}; TOTAL=${D#*/}
                 payload=$(printf '{"slug":"%s","token":"%s","chunk":%s,"done":%s,"total":%s}' "$PROJECT_SLUG" "$PROGRESS_TOKEN" "$CHUNK_INDEX" "$DONE" "$TOTAL")
