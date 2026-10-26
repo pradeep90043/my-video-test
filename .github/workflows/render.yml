@@ -115,43 +115,73 @@ jobs:
 
       - name: Determine Render Arguments
         id: args
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_PROJECT: ${{ inputs.project }}
+          INPUT_BUNDLE_URL: ${{ inputs.bundle_url }}
+          INPUT_RESOLUTION: ${{ inputs.resolution }}
+          INPUT_DRAFT: ${{ inputs.draft }}
+          INPUT_NO_BRANDING: ${{ inputs.no_branding }}
+          INPUT_CHUNKS: ${{ inputs.chunks }}
+          INPUT_PROGRESS_URL: ${{ inputs.progress_url }}
+          INPUT_PROGRESS_TOKEN: ${{ inputs.progress_token }}
+          INPUT_PUBLISH_URL: ${{ inputs.publish_url }}
+          DISPATCH_PROJECT: ${{ github.event.client_payload.project }}
+          DISPATCH_BUNDLE_URL: ${{ github.event.client_payload.bundle_url }}
+          DISPATCH_RESOLUTION: ${{ github.event.client_payload.resolution }}
+          DISPATCH_DRAFT: ${{ github.event.client_payload.draft }}
+          DISPATCH_NO_BRANDING: ${{ github.event.client_payload.no_branding }}
+          DISPATCH_CHUNKS: ${{ github.event.client_payload.chunks }}
+          DISPATCH_PROGRESS_URL: ${{ github.event.client_payload.progress_url }}
+          DISPATCH_PROGRESS_TOKEN: ${{ github.event.client_payload.progress_token }}
+          DISPATCH_PUBLISH_URL: ${{ github.event.client_payload.publish_url }}
         run: |
-          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            PROJECT="${{ github.event.client_payload.project }}"
-            BUNDLE_URL="${{ github.event.client_payload.bundle_url }}"
-            RESOLUTION="${{ github.event.client_payload.resolution || '720' }}"
-            DRAFT="${{ github.event.client_payload.draft || 'false' }}"
-            NO_BRANDING="${{ github.event.client_payload.no_branding || 'false' }}"
-            CHUNKS="${{ github.event.client_payload.chunks || '2' }}"
+          set +x
+          if [ "$EVENT_NAME" = "repository_dispatch" ]; then
+            PROJECT="$DISPATCH_PROJECT"
+            BUNDLE_URL="$DISPATCH_BUNDLE_URL"
+            RESOLUTION="${DISPATCH_RESOLUTION:-720}"
+            DRAFT="${DISPATCH_DRAFT:-false}"
+            NO_BRANDING="${DISPATCH_NO_BRANDING:-false}"
+            CHUNKS="${DISPATCH_CHUNKS:-2}"
+            PROGRESS_URL="$DISPATCH_PROGRESS_URL"
+            PROGRESS_TOKEN="$DISPATCH_PROGRESS_TOKEN"
+            PUBLISH_URL="$DISPATCH_PUBLISH_URL"
           else
-            PROJECT="${{ inputs.project }}"
-            BUNDLE_URL="${{ inputs.bundle_url }}"
-            RESOLUTION="${{ inputs.resolution }}"
-            DRAFT="${{ inputs.draft }}"
-            NO_BRANDING="${{ inputs.no_branding }}"
-            CHUNKS="${{ inputs.chunks || '2' }}"
+            PROJECT="$INPUT_PROJECT"
+            BUNDLE_URL="$INPUT_BUNDLE_URL"
+            RESOLUTION="${INPUT_RESOLUTION:-720}"
+            DRAFT="${INPUT_DRAFT:-false}"
+            NO_BRANDING="${INPUT_NO_BRANDING:-false}"
+            CHUNKS="${INPUT_CHUNKS:-2}"
+            PROGRESS_URL="$INPUT_PROGRESS_URL"
+            PROGRESS_TOKEN="$INPUT_PROGRESS_TOKEN"
+            PUBLISH_URL="$INPUT_PUBLISH_URL"
           fi
 
           FLAGS="--project ${PROJECT} --resolution ${RESOLUTION} --concurrency 2"
           [ "$DRAFT" = "true" ] && FLAGS="$FLAGS --draft"
           [ "$NO_BRANDING" = "true" ] && FLAGS="$FLAGS --no-branding"
 
-          echo "project=$PROJECT" >> "$GITHUB_OUTPUT"
-          echo "bundle_url=$BUNDLE_URL" >> "$GITHUB_OUTPUT"
-          echo "render_flags=$FLAGS" >> "$GITHUB_OUTPUT"
-          echo "want_chunks=$CHUNKS" >> "$GITHUB_OUTPUT"
-          echo "progress_url=${{ inputs.progress_url }}" >> "$GITHUB_OUTPUT"
-          echo "progress_token=${{ inputs.progress_token }}" >> "$GITHUB_OUTPUT"
-          echo "publish_url=${{ inputs.publish_url }}" >> "$GITHUB_OUTPUT"
+          printf 'project=%s\\n' "$PROJECT" >> "$GITHUB_OUTPUT"
+          printf 'bundle_url=%s\\n' "$BUNDLE_URL" >> "$GITHUB_OUTPUT"
+          printf 'render_flags=%s\\n' "$FLAGS" >> "$GITHUB_OUTPUT"
+          printf 'want_chunks=%s\\n' "$CHUNKS" >> "$GITHUB_OUTPUT"
+          printf 'progress_url=%s\\n' "$PROGRESS_URL" >> "$GITHUB_OUTPUT"
+          printf 'progress_token=%s\\n' "$PROGRESS_TOKEN" >> "$GITHUB_OUTPUT"
+          printf 'publish_url=%s\\n' "$PUBLISH_URL" >> "$GITHUB_OUTPUT"
 
       - name: Fetch Dynamic Project Bundle if Provided
         if: steps.args.outputs.bundle_url != ''
+        env:
+          PROJECT: ${{ steps.args.outputs.project }}
+          BUNDLE_URL: ${{ steps.args.outputs.bundle_url }}
         run: |
-          PROJECT="${{ steps.args.outputs.project }}"
-          BUNDLE_URL="${{ steps.args.outputs.bundle_url }}"
-          echo "📥 Fetching dynamic project bundle from ${BUNDLE_URL}..."
+          set +x
+          if [ -n "$BUNDLE_URL" ]; then echo "::add-mask::$BUNDLE_URL"; fi
+          echo "📥 Fetching dynamic project bundle from the configured temporary URL..."
           mkdir -p "public/content/${PROJECT}"
-          curl -sSL "$BUNDLE_URL" -o bundle.tar.gz
+          curl -fsSL "$BUNDLE_URL" -o bundle.tar.gz
           tar -xzf bundle.tar.gz -C "public/content/${PROJECT}"
           ls -la "public/content/${PROJECT}"
 
