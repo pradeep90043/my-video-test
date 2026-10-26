@@ -163,13 +163,13 @@ jobs:
           [ "$DRAFT" = "true" ] && FLAGS="$FLAGS --draft"
           [ "$NO_BRANDING" = "true" ] && FLAGS="$FLAGS --no-branding"
 
-          printf 'project=%s\\n' "$PROJECT" >> "$GITHUB_OUTPUT"
-          printf 'bundle_url=%s\\n' "$BUNDLE_URL" >> "$GITHUB_OUTPUT"
-          printf 'render_flags=%s\\n' "$FLAGS" >> "$GITHUB_OUTPUT"
-          printf 'want_chunks=%s\\n' "$CHUNKS" >> "$GITHUB_OUTPUT"
-          printf 'progress_url=%s\\n' "$PROGRESS_URL" >> "$GITHUB_OUTPUT"
-          printf 'progress_token=%s\\n' "$PROGRESS_TOKEN" >> "$GITHUB_OUTPUT"
-          printf 'publish_url=%s\\n' "$PUBLISH_URL" >> "$GITHUB_OUTPUT"
+          printf 'project=%s\n' "$PROJECT" >> "$GITHUB_OUTPUT"
+          printf 'bundle_url=%s\n' "$BUNDLE_URL" >> "$GITHUB_OUTPUT"
+          printf 'render_flags=%s\n' "$FLAGS" >> "$GITHUB_OUTPUT"
+          printf 'want_chunks=%s\n' "$CHUNKS" >> "$GITHUB_OUTPUT"
+          printf 'progress_url=%s\n' "$PROGRESS_URL" >> "$GITHUB_OUTPUT"
+          printf 'progress_token=%s\n' "$PROGRESS_TOKEN" >> "$GITHUB_OUTPUT"
+          printf 'publish_url=%s\n' "$PUBLISH_URL" >> "$GITHUB_OUTPUT"
 
       - name: Fetch Dynamic Project Bundle if Provided
         if: steps.args.outputs.bundle_url != ''
