@@ -333,22 +333,31 @@ jobs:
           path: public/content/${{ needs.prepare.outputs.project }}
 
       - name: Render frame chunk
+        env:
+          PROGRESS_URL: ${{ needs.prepare.outputs.progress_url }}
+          PROGRESS_TOKEN: ${{ needs.prepare.outputs.progress_token }}
+          PROJECT_SLUG: ${{ needs.prepare.outputs.project }}
+          CHUNK_INDEX: ${{ matrix.chunk }}
+          CHUNK_COUNT: ${{ needs.prepare.outputs.chunks }}
+          RENDER_FLAGS: ${{ needs.prepare.outputs.render_flags }}
         run: |
-          PROGRESS_URL="${{ needs.prepare.outputs.progress_url }}"
-          if [ -n "$PROGRESS_URL" ]; then
-            # Report "Rendered X/Y" for this chunk every 10s so the Studio shows live frame counts.
+          set +x
+          if [ -n "$PROGRESS_URL" ]; then echo "::add-mask::$PROGRESS_URL"; fi
+          if [ -n "$PROGRESS_TOKEN" ]; then echo "::add-mask::$PROGRESS_TOKEN"; fi
+          if [ -n "$PROGRESS_URL" ] && [ -n "$PROGRESS_TOKEN" ]; then
+            # Report "Rendered X/Y" every 10s without logging the temporary token or URL.
             (
               while true; do
                 sleep 10
-                L=$(tr '\r' '\n' < render.log 2>/dev/null | grep -o 'Rendered [0-9]*/[0-9]*' | tail -1)
+                L=$(tr '\\r' '\\n' < render.log 2>/dev/null | grep -o 'Rendered [0-9]*/[0-9]*' | tail -1)
                 [ -n "$L" ] || continue
                 D=${L#Rendered }; DONE=${D%/*}; TOTAL=${D#*/}
-                curl -s -m 8 -X POST "$PROGRESS_URL" -H 'Content-Type: application/json' \
-                  -d "{\"slug\":\"${{ needs.prepare.outputs.project }}\",\"token\":\"${{ needs.prepare.outputs.progress_token }}\",\"chunk\":${{ matrix.chunk }},\"done\":$DONE,\"total\":$TOTAL}" >/dev/null || true
+                payload=$(printf '{"slug":"%s","token":"%s","chunk":%s,"done":%s,"total":%s}' "$PROJECT_SLUG" "$PROGRESS_TOKEN" "$CHUNK_INDEX" "$DONE" "$TOTAL")
+                curl -s -m 8 -X POST "$PROGRESS_URL" -H 'Content-Type: application/json' -d "$payload" >/dev/null || true
               done
             ) &
           fi
-          npx tsx scripts/longs/render.ts ${{ needs.prepare.outputs.render_flags }} --chunk ${{ matrix.chunk }}/${{ needs.prepare.outputs.chunks }} 2>&1 | tee render.log
+          npx tsx scripts/longs/render.ts $RENDER_FLAGS --chunk "$CHUNK_INDEX/$CHUNK_COUNT" 2>&1 | tee render.log
 
       - name: Upload chunk
         uses: actions/upload-artifact@v4
@@ -424,6 +433,15 @@ jobs:
 
       # Upload straight to YouTube from the runner so the dashboard VM never has to download and unpack
       # the video. Best effort: on any failure the mp4 is still uploaded as the artifact below.
+      - name: Mask publishing credentials
+        if: needs.prepare.outputs.publish_url != '' && needs.prepare.outputs.progress_token != ''
+        env:
+          PUBLISH_URL: ${{ needs.prepare.outputs.publish_url }}
+          PUBLISH_TOKEN: ${{ needs.prepare.outputs.progress_token }}
+        run: |
+          if [ -n "$PUBLISH_URL" ]; then echo "::add-mask::$PUBLISH_URL"; fi
+          if [ -n "$PUBLISH_TOKEN" ]; then echo "::add-mask::$PUBLISH_TOKEN"; fi
+
       - name: Publish to YouTube (token from dashboard)
         if: needs.prepare.outputs.publish_url != '' && needs.prepare.outputs.progress_token != ''
         continue-on-error: true
